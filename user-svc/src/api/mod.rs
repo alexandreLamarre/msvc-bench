@@ -1,3 +1,5 @@
+use axum::{response::IntoResponse, Json};
+use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 enum Gender {
@@ -17,11 +19,6 @@ enum DocumentType {
     B,
     C,
 }
-#[derive(Serialize)]
-struct Point {
-    x: i32,
-    y: i32,
-}
 
 impl Default for DocumentType {
     fn default() -> Self {
@@ -30,7 +27,7 @@ impl Default for DocumentType {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-struct User {
+pub struct User {
     user_id: String,
     username: String,
     password: String,
@@ -40,18 +37,35 @@ struct User {
     email: String,
 }
 
-pub fn save_user() {}
+pub fn save_user(Json(payload): Json<User>) -> impl IntoResponse {
+    let user: User = payload;
+
+    (StatusCode::CREATED, Json(user))
+}
 
 fn create_default_auth_user() {}
 
-pub fn get_all_users() {}
+pub fn get_all_users() -> impl IntoResponse {
+    let users: Vec<User> = vec![];
+    (StatusCode::OK, Json(users))
+}
 
-pub fn find_by_user_name() {}
+pub fn find_by_user_name() -> impl IntoResponse {
+    (StatusCode::OK)
+}
 
-pub fn find_by_user_id() {}
+pub fn find_by_user_id() -> impl IntoResponse {
+    (StatusCode::OK)
+}
 
-pub fn delete_user() {}
+pub fn delete_user() -> impl IntoResponse {
+    (StatusCode::ACCEPTED)
+}
 
-pub fn update_user() {}
+pub fn update_user() -> impl IntoResponse {
+    (StatusCode::OK)
+}
 
-pub fn delete_user_auth() {}
+pub fn delete_user_auth() -> impl IntoResponse {
+    (StatusCode::ACCEPTED)
+}
