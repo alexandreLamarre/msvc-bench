@@ -18,7 +18,7 @@ struct Args {
 }
 
 #[derive(Clone)]
-struct ServiceState {
+pub struct ServiceState {
     mongodb: Client,
 }
 
