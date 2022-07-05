@@ -54,13 +54,24 @@ pub async fn save_user(
     Json(payload): Json<User>,
     state: Extension<Arc<ServiceState>>,
 ) -> impl IntoResponse {
-    let resp = find_by_user_name(
-        Json(UserNameRequest {
-            username: payload.username.clone(),
-        }),
-        state.clone(),
-    )
-    .await;
+    match state
+        .mongodb
+        .query_user_name(payload.username.clone())
+        .await
+    {
+        Ok(_) => {
+            println!("{}", "user already exists");
+            return StatusCode::CONFLICT;
+        }
+        Err(e) => {}
+    }
+    // let resp = find_by_user_name(
+    //     Json(UserNameRequest {
+    //         username: payload.username.clone(),
+    //     }),
+    //     state.clone(),
+    // )
+    // .await;
     // if let Ok(resp) = resp {
     //     if resp.status() == StatusCode::OK {
     //         return StatusCode::CONFLICT;
@@ -69,11 +80,16 @@ pub async fn save_user(
     //         return StatusCode::INTERNAL_SERVER_ERROR;
     //     }
     // }
-
-    let user_db = state.mongodb.database("users");
-    let collection = user_db.collection::<User>("users");
-    collection.insert_one(payload, None).await;
-    StatusCode::CREATED
+    // let user_db = state.mongodb.database("users");
+    // let collection = user_db.collection::<User>("users");
+    // collection.insert_one(payload, None).await;
+    match state.mongodb.insert_user(payload).await {
+        Ok(_) => StatusCode::CREATED,
+        Err(e) => {
+            println!("{}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
 }
 
 pub async fn get_all_users() -> impl IntoResponse {
@@ -85,60 +101,68 @@ pub async fn find_by_user_name(
     Json(payload): Json<UserNameRequest>,
     state: Extension<Arc<ServiceState>>,
 ) -> impl IntoResponse {
-    let user_db = state.mongodb.database("users");
-    let collection = user_db.collection::<User>("users");
-
-    let filter = doc! { "username": payload.username };
-    let mut cursor = match collection.find(filter, None).await {
-        Err(e) => {
-            println!("{}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(User::default()));
-        }
-        Ok(curs) => curs,
-    };
-    match cursor.try_next().await {
-        Ok(res) => {
-            if let Some(res) = res {
-                (StatusCode::OK, Json(res))
-            } else {
-                (StatusCode::NOT_FOUND, Json(User::default()))
-            }
-        }
-        Err(e) => {
-            println!("{}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(User::default()))
-        }
+    match state.mongodb.query_user_name(payload.username).await {
+        Ok(user) => (StatusCode::OK, Json(user)),
+        Err(_) => (StatusCode::NOT_FOUND, Json(())),
     }
+    // let user_db = state.mongodb.database("users");
+    // let collection = user_db.collection::<User>("users");
+
+    // let filter = doc! { "username": payload.username };
+    // let mut cursor = match collection.find(filter, None).await {
+    //     Err(e) => {
+    //         println!("{}", e);
+    //         return (StatusCode::INTERNAL_SERVER_ERROR, Json(User::default()));
+    //     }
+    //     Ok(curs) => curs,
+    // };
+    // match cursor.try_next().await {
+    //     Ok(res) => {
+    //         if let Some(res) = res {
+    //             (StatusCode::OK, Json(res))
+    //         } else {
+    //             (StatusCode::NOT_FOUND, Json(User::default()))
+    //         }
+    //     }
+    //     Err(e) => {
+    //         println!("{}", e);
+    //         (StatusCode::INTERNAL_SERVER_ERROR, Json(User::default()))
+    //     }
+    // }
 }
 
 pub async fn find_by_user_id(
     Json(payload): Json<UserIdRequest>,
     state: Extension<Arc<ServiceState>>,
 ) -> impl IntoResponse {
-    let user_db = state.mongodb.database("users");
-    let collection = user_db.collection::<User>("users");
-
-    let filter = doc! { "username": payload.user_id };
-    let mut cursor = match collection.find(filter, None).await {
-        Err(e) => {
-            println!("{}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(e.to_string())).into_response();
-        }
-        Ok(curs) => curs,
-    };
-    match cursor.try_next().await {
-        Ok(res) => {
-            if let Some(res) = res {
-                (StatusCode::OK, Json(res)).into_response()
-            } else {
-                (StatusCode::NOT_FOUND).into_response()
-            }
-        }
-        Err(e) => {
-            println!("{}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(e.to_string())).into_response()
-        }
+    match state.mongodb.query_user_id(payload.user_id).await {
+        Ok(user) => (StatusCode::OK, Json(user)).into_response(),
+        Err(_) => (StatusCode::NOT_FOUND, Json(())).into_response(),
     }
+    // let user_db = state.mongodb.database("users");
+    // let collection = user_db.collection::<User>("users");
+
+    // let filter = doc! { "username": payload.user_id };
+    // let mut cursor = match collection.find(filter, None).await {
+    //     Err(e) => {
+    //         println!("{}", e);
+    //         return (StatusCode::INTERNAL_SERVER_ERROR, Json(e.to_string())).into_response();
+    //     }
+    //     Ok(curs) => curs,
+    // };
+    // match cursor.try_next().await {
+    //     Ok(res) => {
+    //         if let Some(res) = res {
+    //             (StatusCode::OK, Json(res)).into_response()
+    //         } else {
+    //             (StatusCode::NOT_FOUND).into_response()
+    //         }
+    //     }
+    //     Err(e) => {
+    //         println!("{}", e);
+    //         (StatusCode::INTERNAL_SERVER_ERROR, Json(e.to_string())).into_response()
+    //     }
+    // }
 }
 
 pub async fn delete_user() -> impl IntoResponse {
